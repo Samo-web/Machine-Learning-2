@@ -1,0 +1,266 @@
+---
+title: "Assignment2:Logistic regression"
+author: "Me!"
+date: "2/11/2021"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=F, message=F, warning=F}
+
+#libraries
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(tidyverse)
+library(tidymodels)
+library(ggbeeswarm)
+library(stargazer)
+library(ggplot2)
+library(AER)
+library(modelr)
+library(kableExtra)
+library(dplyr)
+```
+
+```{r, echo=FALSE, include=FALSE}
+ess <- read.csv(file = "ESS2010.csv")
+```
+
+# Problem 1: Age and internet use: 
+
+The  internet use variable is  binary variable (freqnet) measured  with 1 for frequent use , while the age variable (agea) is measured in years. the internet use has become a social necessity. it is used by all ages for network and information seeing especially by young ages who are living in a contemporary world with new technologies so I  hypothesize that there is a significant relationship between age and internet use. older ages (+ 60) are less likely to adopt internet comparing to other ages.
+
+Figure 1 shows the relationship between age and frequent internet usage in Europe in the raw data, where the respondents grouped by age. it is clear from the slope that there is a negative relationship between age and frequent internet use. As the age increases the usage for internet decreases and this supports my hypothesis. To predict the internet use as a function of age, I run a linear probability model (red line) and logistic model (green line) with one binary outcome (freqnet) and one explanatory variable (agea) and included it in figure. By comparing the lines in graph, we can see that the blue line referring to logistic is closer to the true data (blue) but with longer ends while the green is straight from top to down. the results are shown in Table1.  
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+m1 <- lm(formula = freqnet ~ I((agea-14)/10), data = ess)
+m2 <- glm(freqnet~ I((agea-14)/10), family=binomial(link="logit"), data = ess)
+
+preds_1 <- ess %>% summarize(agea = seq(1, 100, by=1)) %>% augment(m1,newdata=., se_fit = T)
+
+preds_2 <- ess %>% summarize(agea= seq(1, 100, by=1)) %>% augment(m2,newdata=.,type.predict="response")
+
+logistic <- function(x) {return(1/(1+exp(-x)))}
+ggplot(ess, aes(x =agea, y = freqnet)) + geom_quasirandom(groupOnX = F, width = 0.1) + geom_smooth(se =F, aes(color ="smoothed proportion line")) +
+  geom_line(data = preds_1, aes (x = agea, y = .fitted, color = "LM")) +
+  geom_line(data = preds_2, aes (x = agea, y = .fitted, color = "Lr")) + theme(text = element_text(size=12)) + labs(title = "Figure1: frequent use of internet by age", x = "age", y = "probability")
+
+```
+```{r}
+## Johanna code with splitted blue line
+myplot <- ggplot(ESS2010,aes(y=freqnet,x=agea)) + geom_quasirandom(groupOnX = F, width = 0.2) +   geom_smooth(se =F, linetype ="dashed", aes(color="Smoothed propotion line")) + 
+geom_line(data=preds_1, aes(x=agea,y=pred, group = model, color=model)) + 
+scale_color_discrete(name = "Models",
+                     labels = c("Logistic regression model", "Linear probability model", "Smoothed proportion line")) +
+  theme(text = element_text(size = 10))+ 
+  labs(caption=paste0("Source: European social Survey (ESS), N=",N_age_frequent), title = "Figure 1: Frequent internet usage by age",
+    x = "Age",
+    y = "Probability of being a frequent internet user"
+  )
+myplot
+```
+
+In the linear probability column (1)/Table1, the constant shows 101 % probability when age variable is 0 to be a frequent internet user and with each one increase in age the probability decreases by 13,5 %. also shows 24 % variance in data while the logistic probability column (2) is hard to interpret in this case and the age coefficient need to be exponentiated: exp(coef(m2)). model 2 implies that Older people have nearly 0.5 times higher odds of using internet in a dialy basis or several times per week compared to those in younger ages.
+while the outcomes of both models a little bit different but it is still support my hypothesis.  
+```{r, echo=FALSE, include=FALSE}
+# models
+m1 <- lm(formula = freqnet ~ I((agea-14)/10), data = ess)
+m2 <- glm(freqnet~ I((agea-14)/10), family=binomial(link="logit"), data = ess)
+
+```
+
+
+```{r }
+exp(coef(m2))
+```
+
+
+```{r, echo=FALSE, include=FALSE}
+library(dplyr)
+#1.F
+## predictions for LM
+preds_1 <- ess %>% summarize(agea = seq(1, 100, by=1)) %>% augment(m1,newdata=., se_fit = T)
+
+## predictions for glm
+
+preds_2 <- ess %>% summarize(agea= seq(1, 100, by=1)) %>% augment(m2,newdata=.,type.predict="response")
+```
+
+
+# Problem 2: Education and internet use:
+
+I think that the more educated individuals are the more likely to use internet in a daily basis concerning their studies, researches and information seeking so I think there is a positive relationship between these two variables. So I hypothesize that individuals with high level are more likely to use internet in a daily or weekly basis.  
+
+
+The variable related to education (eisced) is ordinal measured by a scale from 1-7 where 7 refers to MA level. Table 2 shows the percentage of frequent and non frequent uses of internet. we see that individuals with most education level like BA and MA level have higher share of frequent internet user and this supports my hypothesis. chi squared refers to a significant relationship.  
+
+
+I run linear probability and logistic regression models for both variables freqnet and eisced as a factor. we can see the results of these models in table3. in col(1) that refers to the linear probability model, we see that there is a significant relationsship between education variables in all levels and frequent use of internet. also we notice that the higher level of education, the more likely to be frequent internet user, for example, for MA -BA level, the probability to be frequent internet user is between 62-66%. these results support my hypothesis.  
+
+
+
+```{r, echo=FALSE, include=FALSE}
+# models
+m3 <- lm(formula = freqnet ~ factor(eisced), data = ess)
+m4 <- glm(formula = freqnet ~ factor(eisced), family = "binomial"(link="logit"), data = ess)
+m5 <- lm(formula = freqnet ~ factor(eisced) + hinctnta + factor(gndr) , data = ess)
+m6 <- glm(formula = freqnet ~ factor(eisced) + hinctnta + factor(gndr) , data = ess, family = "binomial"(link="logit"))
+
+```
+
+
+
+As I calculate predictions for both models (figure 2), I find results are similar i.e people with lower level of education have lower probabilty 16% to use internet in frequent basis and we can see that findings and numbers are compatible with our findings in table1  
+
+
+
+```{r, echo=FALSE}
+logistic<-function(x) {return(1/(1+exp(-x)))} 
+preds_3 <- ess %>% summarize(eisced = seq(1, 7)) %>% 
+  gather_predictions(m3,m4,type="response") 
+summary(preds_3)
+```
+
+
+#Problem 3: Determinants of internet use.
+
+There are various socio-economic factors that may impact the use of internet for example, demographic variables such as (gender= gndr) if the user is male or female may differentiate in the level of frequent using of internet. Educated female individuals who have other responsibilities at house or with kids are less likely to be frequent internet users. Also another variable is the household income decile (hinctnta). People who have higher income decile are more likely to be frequent internet users as they will be able to pay invoices and pay internet packages or to have an open net connection as illustrated in figure 4. Third variable is the iscomajor (Occupational groups). we find a strong connection between the level of education and the type of work.(iscomajor) is an ordinal variable measured on  scale from 0 to 10 where 10 is Never worked.  
+
+
+To examine the relationship between these variables, I run linear probability and logistic models using two variables (hinctnta) & (gndr) as shown on table 3-col(3) we find significant relationship between these variable and the frequent use of internet. also we find a slight decrease in the probabilities for educated people to be frequent internet users but still reasonable probabilities. for example worker with BA level of education has probability 52% to be frequent internet user. also we find a negative significant relationship between gender(female) and freqnet. it is less likely for females to be frequent internet users by 4,5% comparing to males. it is hard to estimate the results of logistic regression as shown in col(4) but by producing predictions we can have a better image: for people from both genders with low levels of education and moderate income have low probability 20% of being frequent internet users. All results still from both models still support my hypothesis.
+
+Figure 5 illustrates the relationship between income decile and level of education with the frequent use of internet divided by gender. we see there is non linear relationship between these variables (red line). we can see that higher level of income connected with being a frequent user but with more probability for males. also we see the green line with represent the logistic model is in line with the red one but with longer tail at the beginning. we see the results in figure 4 is similar to our findings in table 1.  
+
+
+```{r, echo=FALSE, include=FALSE}
+## Produce predicted probabilities for models 5 &6
+q<-quantile(ess$iscomajor,na.rm = T,probs=c(.025,.975))
+
+q<-quantile(ess$eisced,na.rm = T,probs=c(.025,.975))
+preds4 <- expand.grid(eisced = seq(q[1],q[2],1), 
+                      hinctnta = median(ess$hinctnta),
+                      gndr=c("1","2"))%>%
+  mutate(Female=ifelse(gndr=="2","Female","Male")) %>%
+  gather_predictions(m5,m6,type="response")
+preds4
+
+```
+
+  
+  
+```{r, warning=FALSE, echo=FALSE}
+
+stargazer(list(m1,m2),
+          header=F, keep.stat = c("n","ll","adj.rsq"),
+          title = "Table1: LPM and LR regression models of frequent Internet use by age",
+          notes = c("Source: European Social Survey (ESS)2010"),
+          covariate.labels = c("Age/years"),type = "text")
+```  
+
+
+  
+```{r, echo=FALSE}
+
+ess <- as_tibble(ess)
+t<-ess %>% 
+  filter(!is.na(eisced) & !is.na(freqnet)) %>% 
+  tabyl(eisced,freqnet) %>% 
+  adorn_totals(c("row","col")) %>% 
+  adorn_percentages("row") %>% 
+  adorn_pct_formatting(rounding="half up",digit=1) %>% 
+  adorn_ns() %>%
+  adorn_title("combined") 
+names(t)<-c("Level of Education","Non Frequent User","Frequent Internet User", "Total")
+
+chi2<-chisq.test(with(ess,table(eisced,freqnet)))
+chi2note<-with(chi2,paste0("Chi-squared = ",format(statistic,digits=1),
+                          ", df = ",parameter,
+                          ", p-value ", ifelse(p.value<.001,"< 0.001",paste0("= ",format(p.value,digits=3)))))
+kbl(t, booktabs=T, align = "l", linesep="", position="h", caption="Table2: Frequent Internet Use by level of education") %>% 
+  row_spec(0,align="c") %>% 
+  row_spec(nrow(t)-1,hline_after = T) %>% 
+  add_header_above(c(" ","Internet use"=2," ")) %>% 
+  footnote(general=c(chi2note,"Source: European Social Survey (ESS)2010"),
+           fixed_small_size = T, 
+           footnote_as_chunk=T, threeparttable = T)
+```  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+       
+       
+  
+
+
+
+  
+```{r,echo= FALSE, warning=FALSE}
+#2.C
+stargazer(list(m3,m4,m5,m6),
+          header=F, keep.stat = c("n","ll","adj.rsq"),
+          title = "Table3: LPM and LR regression models of frequent Internet use by the level of education",
+          notes = c("Source: European Social Survey (ESS)2010"),
+          covariate.labels = c("lower secondary ",
+                               "lower tier upper secondary",
+                               "upper tier upper secondary",
+                               "advanced vocational, sub-degree",
+                               "BA level",
+                               "MA level",
+                               "hinctnta",
+                               "Female")
+                               ,type = "text")
+```
+
+
+
+
+  
+  
+```{r, echo=FALSE, message=TRUE}
+ggplot(preds_3,aes(x=eisced,y=pred,group=model,color=model)) + 
+  geom_line()+ 
+  facet_grid()+
+  scale_color_discrete(name="Model",labels = c("lm","lr")) +
+  labs(x="Figure2: Level of Education", y="Pred. prob.")
+```
+
+
+```{r, echo= FALSE, message=FALSE}
+ ess %>% 
+  group_by(iscomajor) %>% 
+  summarize(prop=100*sum(freqnet==1)/n()) %>% 
+ggplot(aes(y=prop,x=iscomajor)) + 
+  geom_bar(stat="identity") + 
+  labs(y="precentage",x="Figure3: Occupational groups") +
+  theme(text = element_text(size = 12))  
+```
+
+
+```{r, echo=FALSE, message=FALSE}
+#Inspecting Freqnet vs. hinctnta:
+ggplot(ess,aes(y=freqnet,x=hinctnta)) + geom_quasirandom(groupOnX = T) + geom_smooth() + theme(text = element_text(size = 12))+labs(y="%",x="Figure4: household income decile") 
+```
+
+
+```{r, echo=FALSE, message=TRUE}
+ggplot(preds4,aes(x=eisced,y=pred,group=model,color=model)) + 
+  geom_line() + 
+  facet_grid(cols=vars(Female)) +
+  scale_color_discrete(name="Model",labels = c("LPM","LR")) +
+  labs(x="Figure5: Frequnet internet users by income decile", y="Pred. prob.")
+
+```
